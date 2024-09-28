@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	// "log"
 	// "github.com/joho/godotenv"
 )
@@ -14,8 +15,10 @@ var (
 	DBUser     string
 	DBName     string
 	DBPassword string
-	APIID      string
+	APIID      int32
 	APIHash    string
+
+	PhoneNumber string
 )
 
 func EnvInit() {
@@ -45,14 +48,26 @@ func EnvInit() {
 		fmt.Println("PASSWORD is not set. Using default password postgres")
 	}
 
-	APIID = os.Getenv("API_ID")
-	if APIID == "" {
+	apiIDStr := os.Getenv("API_ID")
+	if apiIDStr == "" {
 		fmt.Println("API_ID is not set. Using default API_ID")
+	} else {
+		apiID, err := strconv.Atoi(apiIDStr)
+		if err != nil {
+			fmt.Println("Invalid API_ID. Using default API_ID")
+		} else {
+			APIID = int32(apiID)
+		}
 	}
 
 	APIHash = os.Getenv("API_HASH")
 	if APIHash == "" {
 		fmt.Println("API_HASH is not set. Using default API_HASH")
+	}
+
+	PhoneNumber = os.Getenv("PHONE_NUMBER")
+	if PhoneNumber == "" {
+		fmt.Println("PHONE_NUMBER is not set. Using default phone number")
 	}
 
 }
