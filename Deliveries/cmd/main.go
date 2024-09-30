@@ -1,16 +1,14 @@
 package main
 
 import (
-	"fmt"
 	config "kesbekes/Config"
-	"kesbekes/Infrastructure/bot"
+	routers "kesbekes/Deliveries/Routers"
 )
 
 func main() {
-	fmt.Println("here")
-	fmt.Println("here")
+
 	config.EnvInit()
-	db := config.ConnectDB()
-	fmt.Println(db)
-	bot.NewTdLib()
+	r := routers.Setuprouter()
+	r.Run(":8080")
+
 }
