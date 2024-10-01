@@ -19,6 +19,7 @@ var (
 	APIHash    string
 
 	PhoneNumber string
+	BotToken    string
 )
 
 func EnvInit() {
@@ -68,6 +69,11 @@ func EnvInit() {
 	PhoneNumber = os.Getenv("PHONE_NUMBER")
 	if PhoneNumber == "" {
 		fmt.Println("PHONE_NUMBER is not set. Using default phone number")
+	}
+
+	BotToken = os.Getenv("BOT_TOKEN")
+	if BotToken == "" {
+		fmt.Println("BOT_TOKEN is not set. Using default bot token")
 	}
 
 }

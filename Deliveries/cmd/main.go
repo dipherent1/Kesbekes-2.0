@@ -8,6 +8,7 @@ import (
 func main() {
 
 	config.EnvInit()
+
 	r := routers.Setuprouter()
 	r.Run(":8080")
 

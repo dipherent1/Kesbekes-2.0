@@ -6,11 +6,15 @@ import (
 )
 
 func Bot() {
+	botClient := bot.NewTdLib()
+	botController := controllers.NewBotController(botClient)
 	botRouter := Router.Group("/bot")
 	{
-		botClient := bot.NewTdLib()
-		botController := controllers.NewBotController(botClient)
-
 		botRouter.GET("/get10updates", botController.Get10Updates)
+	}
+
+	webhookRouter := Router.Group("/webhook")
+	{
+		webhookRouter.POST("/", botController.Webhook)
 	}
 }

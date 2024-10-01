@@ -12,6 +12,7 @@ var DB *gorm.DB
 
 func Setuprouter() *gin.Engine {
 	db := config.ConnectDB()
+	config.NewBot()
 	DB = db
 	Router = gin.Default()
 

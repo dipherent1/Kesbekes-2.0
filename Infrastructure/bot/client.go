@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"encoding/json"
 	config "kesbekes/Config"
 	"log"
 	"path/filepath"
@@ -71,18 +72,23 @@ func NewTdLib() *TdLib {
 }
 
 func (t *TdLib) Get10Updates() {
-
 	updates, err := t.TdLibClient.GetChatHistory(&client.GetChatHistoryRequest{
-		ChatId: 123456789,
-		Limit:  10,
+		ChatId: -1001132580599,
+		Limit:  20,
 	})
 
 	if err != nil {
 		log.Fatalf("GetUpdates error: %s", err)
 	}
 
-	for _, update := range updates.Messages {
-		log.Printf("Update: %v", update)
-	}
+	log.Printf("Total messages retrieved: %d", len(updates.Messages))
 
+	for _, update := range updates.Messages {
+		content, err := json.MarshalIndent(update.Content, "", "  ")
+		if err != nil {
+			log.Printf("Error marshalling update content: %s", err)
+			continue
+		}
+		log.Printf("Update: %s", content)
+	}
 }
