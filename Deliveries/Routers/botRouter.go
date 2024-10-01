@@ -15,6 +15,6 @@ func Bot() {
 
 	webhookRouter := Router.Group("/webhook")
 	{
-		webhookRouter.POST("/", botController.Webhook)
+		webhookRouter.POST("", botController.Webhook)
 	}
 }
