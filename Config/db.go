@@ -16,6 +16,6 @@ func ConnectDB() *gorm.DB {
 		panic("failed to connect database")
 	}
 
+	// Migrate the schema
 	return db
-
 }

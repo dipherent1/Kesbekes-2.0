@@ -12,10 +12,12 @@ var DB *gorm.DB
 
 func Setuprouter() *gin.Engine {
 	db := config.ConnectDB()
-	config.NewBot()
 	DB = db
+	// Migrate the schema
+	Migrate()
+
 	Router = gin.Default()
 
-	Bot()
+	BotRouter()
 	return Router
 }

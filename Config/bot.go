@@ -6,7 +6,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func NewBot() {
+func NewBot() *tgbotapi.BotAPI {
 
 	// Initialize the bot
 	bot, err := tgbotapi.NewBotAPI(BotToken)
@@ -14,7 +14,7 @@ func NewBot() {
 		log.Fatal(err)
 	}
 
-	wh, _ := tgbotapi.NewWebhook("https://5efe-196-191-221-152.ngrok-free.app/webhook")
+	wh, _ := tgbotapi.NewWebhook("https://f42c-196-191-221-54.ngrok-free.app/webhook")
 
 	_, err = bot.Request(wh)
 	if err != nil {
@@ -29,5 +29,5 @@ func NewBot() {
 	if info.LastErrorDate != 0 {
 		log.Printf("Telegram webhook error: %s", info.LastErrorMessage)
 	}
-
+	return bot
 }
