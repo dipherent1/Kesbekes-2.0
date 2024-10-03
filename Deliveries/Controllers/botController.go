@@ -6,6 +6,7 @@ import (
 	repositories "kesbekes/Repositories"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -30,7 +31,6 @@ func (b *BotController) Get10Updates(c *gin.Context) {
 }
 
 var isPreferenses = false
-var preferenses []string
 
 func (b *BotController) Webhook(c *gin.Context) {
 	var update tgbotapi.Update
@@ -95,24 +95,24 @@ func (b *BotController) Webhook(c *gin.Context) {
 	// Handle the message add perfereces command
 	if update.Message != nil && update.Message.IsCommand() && update.Message.Command() == "addpreferenses" {
 		isPreferenses = true
-		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Enter your preferenses"))
+		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Enter your preferenses in the following format:\n preferense1\n preferense2\n preferense3"))
 		return
 	}
 
 	if isPreferenses {
-		preferenses = append(preferenses, update.Message.Text)
-		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Preferenses added, send /done to finish"))
 		isPreferenses = false
-		return
-	}
+		preferenses := []string{}
+		// Split the message by new line and add each line to the preferenses slice
+		lines := strings.Split(update.Message.Text, "\n")
+		for _, line := range lines {
+			preferenses = append(preferenses, line)
+		}
 
-	if update.Message != nil && update.Message.IsCommand() && update.Message.Command() == "done" {
-		isPreferenses = false
 		user := &domains.User{
 			UserID:      update.Message.From.ID,
 			Preferenses: preferenses,
 		}
-		err := b.BotRepo.UpdateUserPreferenses(user)
+		err := b.BotRepo.UpdateUserPreferences(user)
 		if err != nil {
 			log.Printf("Error saving preferenses: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -120,12 +120,28 @@ func (b *BotController) Webhook(c *gin.Context) {
 			b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Error saving preferenses"))
 			return
 		}
+
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Preferenses saved"))
 		return
-
 	}
 
+	// Handle the message get preferenses command
+	if update.Message != nil && update.Message.IsCommand() && update.Message.Command() == "getpreferenses" {
+		userID := int64(update.Message.From.ID)
+		preferenses, err := b.BotRepo.GetUserPreferences(userID)
+		if err != nil {
+			log.Printf("Error getting preferenses: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			//send using telegram
+			b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Error getting preferenses"))
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(preferenses, "\n")))
+		return
+	}
 	// Respond back to Telegram
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
