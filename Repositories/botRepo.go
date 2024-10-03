@@ -17,3 +17,7 @@ func NewTelegramRepository(db *gorm.DB) *TelegramRepository {
 func (r *TelegramRepository) StoreChat(chatInfo *domains.ChatInfo) error {
 	return r.database.Create(&chatInfo).Error
 }
+
+func (r *TelegramRepository) StoreUser(user *domains.User) error {
+	return r.database.Create(&user).Error
+}

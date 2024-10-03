@@ -64,6 +64,31 @@ func (b *BotController) Webhook(c *gin.Context) {
 		return
 	}
 
+	// Handle the message start command
+	if update.Message != nil && update.Message.IsCommand() && update.Message.Command() == "start" {
+		// Check if the user is already in the database
+		user := &domains.User{
+			Username: update.Message.From.UserName,
+			FistName: update.Message.From.FirstName,
+			LastName: update.Message.From.LastName,
+			Role:     "user",
+			UserID:   int64(update.Message.From.ID),
+		}
+		err := b.BotRepo.StoreUser(user)
+		if err != nil {
+			log.Printf("Error saving user: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			//send using telegram
+			b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Error saving user"))
+			return
+		}
+
+		// Respond back to Telegram
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "User saved"))
+		return
+	}
+
 	// Respond back to Telegram
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
