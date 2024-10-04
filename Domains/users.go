@@ -14,10 +14,12 @@ type User struct {
 	Role     string `json:"role"`
 	UserID   int64  `json:"user_id"`
 
-	Email       string         `json:"email" gorm:"uniqueindex"`
-	Username    string         `json:"username" gorm:"uniqueindex"`
-	Password    string         `json:"password"`
+	Email    string `json:"email" gorm:"uniqueindex"`
+	Username string `json:"username" gorm:"uniqueindex"`
+	Password string `json:"password"`
+
 	Preferenses pq.StringArray `json:"preferenses" gorm:"type:text[]"`
+	Chats       []ChatInfo     `json:"chats" gorm:"many2many:user_chats;"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

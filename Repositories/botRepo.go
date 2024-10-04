@@ -1,6 +1,8 @@
 package repositories
 
 import (
+	"errors"
+	"fmt"
 	domains "kesbekes/Domains"
 
 	"gorm.io/gorm"
@@ -14,8 +16,46 @@ func NewTelegramRepository(db *gorm.DB) *TelegramRepository {
 	return &TelegramRepository{database: db}
 }
 
-func (r *TelegramRepository) StoreChat(chatInfo *domains.ChatInfo) error {
-	return r.database.Create(&chatInfo).Error
+func (r *TelegramRepository) StoreChat(chatInfo *domains.ChatInfo, userID int64) error {
+	// Check if chat with the same chat_id already exists
+	var existingChat domains.ChatInfo
+	err := r.database.Where("chat_id = ?", chatInfo.ChatID).First(&existingChat).Error
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	// Retrieve the existing user
+	existingUser, err := r.GetUser(userID)
+	if err != nil {
+		return err
+	}
+
+	// If chat exists, update the Users field
+	if existingChat.ID != 0 {
+		existingChat.Users = append(existingChat.Users, *existingUser)
+		// Save the updated chat with the new user
+		return r.database.Save(&existingChat).Error
+	}
+
+	// If chat doesn't exist, add the user to the new chat and create it
+	chatInfo.Users = append(chatInfo.Users, *existingUser)
+	err = r.database.Create(&chatInfo).Error
+	if err != nil {
+		return err
+	}
+	fmt.Println("---Chat saved successfully---")
+
+	// Save the user with the new chat added
+	return r.database.Save(&existingUser).Error
+}
+
+func (r *TelegramRepository) GetUser(UserID int64) (*domains.User, error) {
+	var user domains.User
+	if err := r.database.Where("user_id = ?", UserID).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 func (r *TelegramRepository) StoreUser(user *domains.User) error {

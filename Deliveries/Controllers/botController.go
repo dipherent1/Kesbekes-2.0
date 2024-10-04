@@ -31,6 +31,7 @@ func (b *BotController) Get10Updates(c *gin.Context) {
 }
 
 var isPreferenses = false
+var isDeletePreferenses = false
 
 func (b *BotController) Webhook(c *gin.Context) {
 	var update tgbotapi.Update
@@ -52,7 +53,7 @@ func (b *BotController) Webhook(c *gin.Context) {
 		}
 
 		// Save the chat to the database
-		err := b.BotRepo.StoreChat(chatinfo)
+		err := b.BotRepo.StoreChat(chatinfo, int64(update.Message.From.ID))
 		if err != nil {
 			log.Printf("Error saving chat: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -142,6 +143,32 @@ func (b *BotController) Webhook(c *gin.Context) {
 		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(preferenses, "\n")))
 		return
 	}
+
+	// delelet preferennse command
+	if update.Message != nil && update.Message.IsCommand() && update.Message.Command() == "deletepreferenses" {
+		isDeletePreferenses = true
+		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Enter the preferense you want to delete one by one"))
+		return
+	}
+
+	if isDeletePreferenses {
+		isDeletePreferenses = false
+		deleteWord := update.Message.Text
+		userID := int64(update.Message.From.ID)
+		err := b.BotRepo.DeleteUserPreferences(userID, deleteWord)
+		if err != nil {
+			log.Printf("Error deleting preferenses: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			//send using telegram
+			b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Error deleting preferenses"))
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Preferense deleted"))
+		return
+	}
+
 	// Respond back to Telegram
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
