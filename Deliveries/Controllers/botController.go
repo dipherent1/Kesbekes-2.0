@@ -32,6 +32,7 @@ func (b *BotController) Get10Updates(c *gin.Context) {
 
 var isPreferenses = false
 var isDeletePreferenses = false
+var isDeleteChat = false
 
 func (b *BotController) Webhook(c *gin.Context) {
 	var update tgbotapi.Update
@@ -48,7 +49,7 @@ func (b *BotController) Webhook(c *gin.Context) {
 		// Check if the chat is already in the database
 		chatinfo := &domains.ChatInfo{
 			Name:     update.Message.ForwardFromChat.Title,
-			Username: update.Message.ForwardFromChat.UserName,
+			Username: "@" + update.Message.ForwardFromChat.UserName,
 			ChatID:   update.Message.ForwardFromChat.ID,
 		}
 
@@ -166,6 +167,51 @@ func (b *BotController) Webhook(c *gin.Context) {
 
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Preferense deleted"))
+		return
+	}
+
+	//get my chats command
+	if update.Message != nil && update.Message.IsCommand() && update.Message.Command() == "getmychats" {
+		userID := int64(update.Message.From.ID)
+		chats, err := b.BotRepo.GetUserChats(userID)
+		if err != nil {
+			log.Printf("Error getting chats: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			//send using telegram
+			b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Error getting chats"))
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Your chats are:"))
+		for _, chat := range chats {
+			b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, chat.Username))
+		}
+		return
+	}
+
+	//delete chat command
+	if update.Message != nil && update.Message.IsCommand() && update.Message.Command() == "deletechat" {
+		isDeleteChat = true
+		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Enter the chat username you want to delete"))
+		return
+	}
+
+	if isDeleteChat {
+		isDeleteChat = false
+		deleteWord := update.Message.Text
+		userID := int64(update.Message.From.ID)
+		err := b.BotRepo.DeleteUserChat(userID, deleteWord)
+		if err != nil {
+			log.Printf("Error deleting chat: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			//send using telegram
+			b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Error deleting chat"))
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Chat deleted"))
 		return
 	}
 

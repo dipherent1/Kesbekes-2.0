@@ -101,3 +101,41 @@ func (r *TelegramRepository) DeleteUserPreferences(userID int64, deleteWord stri
 
 	return r.database.Save(&user).Error
 }
+
+// get user chats
+func (r *TelegramRepository) GetUserChats(userID int64) ([]domains.ChatInfo, error) {
+	var user domains.User
+	if err := r.database.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		return nil, err
+	}
+
+	var chats []domains.ChatInfo
+	if err := r.database.Model(&user).Association("Chats").Find(&chats); err != nil {
+		return nil, err
+	}
+
+	return chats, nil
+}
+
+// delete user chat by chat username
+func (r *TelegramRepository) DeleteUserChat(userID int64, chatUsername string) error {
+	// Retrieve the user by user_id
+	var user domains.User
+	if err := r.database.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		return fmt.Errorf("error fetching user: %w", err)
+	}
+
+	// Retrieve the chat by username
+	var chat domains.ChatInfo
+	if err := r.database.Where("username = ?", chatUsername).First(&chat).Error; err != nil {
+		return fmt.Errorf("error fetching chat: %w", err)
+	}
+
+	// Delete the association (remove the chat from the user's list of chats)
+	if err := r.database.Model(&user).Association("Chats").Delete(&chat); err != nil {
+		return fmt.Errorf("error deleting chat association: %w", err)
+	}
+
+	fmt.Println("Chat successfully removed from user's chats")
+	return nil
+}
