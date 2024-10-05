@@ -8,8 +8,8 @@ import (
 )
 
 func BotRouter() {
-	TgClient := bot.NewTdLib()
-	Bot := config.NewBot()
+	Bot = config.NewBot()
+	TgClient := bot.NewTdLib(Bot)
 
 	BotRepo := repositories.NewTelegramRepository(DB)
 	botController := controllers.NewBotController(TgClient, Bot, BotRepo)

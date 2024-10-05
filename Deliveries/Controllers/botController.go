@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	domains "kesbekes/Domains"
 	"kesbekes/Infrastructure/bot"
 	repositories "kesbekes/Repositories"
@@ -213,6 +214,34 @@ func (b *BotController) Webhook(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Chat deleted"))
 		return
+	}
+
+	// handel message listen command
+	if update.Message != nil && update.Message.IsCommand() && update.Message.Command() == "listen" {
+		// get chats
+		userID := int64(update.Message.From.ID)
+		chats, err := b.BotRepo.GetUserChats(userID)
+		if err != nil {
+			log.Printf("Error getting chats: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			//send using telegram
+			b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Error getting chats"))
+			return
+		}
+
+		// get chat id in an array
+		chatIDs := []int64{}
+		for _, chat := range chats {
+			chatIDs = append(chatIDs, chat.ChatID)
+		}
+
+		fmt.Println(chatIDs)
+
+		// Run the listener in a separate goroutine so it doesn't block the main process
+		go b.TdlibClient.Listen(chatIDs)
+
+		// Acknowledge that the bot started listening
+		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Now listening to your chats."))
 	}
 
 	// Respond back to Telegram
