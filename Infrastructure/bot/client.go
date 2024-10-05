@@ -97,7 +97,7 @@ func (t *TdLib) Get10Updates() {
 	}
 }
 
-func (t *TdLib) Listen(chatIDs []int64) {
+func (t *TdLib) Listen(chatIDs []int64, userID int64) {
 	// Create a listener and defer closing it to ensure resources are freed
 	listener := t.TdLibClient.GetListener()
 	defer listener.Close()
@@ -116,6 +116,8 @@ func (t *TdLib) Listen(chatIDs []int64) {
 			// Check if the message has text content
 			if messageText, ok := newMessage.Content.(*client.MessageText); ok {
 				fmt.Printf("New message text received: %s\n", messageText.Text.Text)
+				go checkIfChatIDExists(chatIDs, newMessage.ChatId, t.Bot, userID)
+
 			} else {
 				fmt.Println("Received new message but it does not contain text.")
 			}
@@ -124,4 +126,14 @@ func (t *TdLib) Listen(chatIDs []int64) {
 		}
 	}
 
+}
+
+// checkIfChatIDExists checks if the chatID exists in the chatIDs slice if it does send using bot
+func checkIfChatIDExists(chatIDs []int64, chatID int64, bot *tgbotapi.BotAPI, userID int64) {
+	for _, id := range chatIDs {
+		if id == chatID {
+			bot.Send(tgbotapi.NewMessage(userID, "interested chat found"))
+			return
+		}
+	}
 }

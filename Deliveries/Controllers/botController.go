@@ -238,7 +238,7 @@ func (b *BotController) Webhook(c *gin.Context) {
 		fmt.Println(chatIDs)
 
 		// Run the listener in a separate goroutine so it doesn't block the main process
-		go b.TdlibClient.Listen(chatIDs)
+		go b.TdlibClient.Listen(chatIDs, update.Message.Chat.ID)
 
 		// Acknowledge that the bot started listening
 		b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Now listening to your chats."))
