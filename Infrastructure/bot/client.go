@@ -98,41 +98,56 @@ func (t *TdLib) Get10Updates() {
 }
 
 func (t *TdLib) Listen(chatIDs []int64, userID int64) {
-	// Create a listener and defer closing it to ensure resources are freed
+	// Create a listener
 	listener := t.TdLibClient.GetListener()
 	defer listener.Close()
 
-	// Notify when a new message listener is active
+	// Channel for passing new messages to workers
+	messageChannel := make(chan *client.UpdateNewMessage, 100) // Buffer size as needed
+
+	// Start a fixed number of worker goroutines
+	workerCount := 5 // Adjust this value based on the expected load
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			for update := range messageChannel {
+				processMessage(update, chatIDs, t.Bot, userID)
+			}
+		}()
+	}
+
+	// Process updates and send new messages to the channel
 	fmt.Println("New message listener activated")
-	fmt.Printf("this is the listener %v\n", listener)
-
-	// Start listening for updates in a goroutine so it doesn't block the main thread
-	fmt.Printf("listener.Updates: %v\n", listener.Updates) // Check what kind of updates you're receiving
-
 	for update := range listener.Updates {
 		switch u := update.(type) {
 		case *client.UpdateNewMessage:
-			newMessage := u.Message
-			// Check if the message has text content
-			if messageText, ok := newMessage.Content.(*client.MessageText); ok {
-				fmt.Printf("New message text received: %s\n", messageText.Text.Text)
-				go checkIfChatIDExists(chatIDs, newMessage.ChatId, t.Bot, userID)
-
-			} else {
-				fmt.Println("Received new message but it does not contain text.")
-			}
+			// Send the new message to the messageChannel for processing by a worker
+			messageChannel <- u
 		default:
 			fmt.Printf("Unknown update type received: %v\n", u)
 		}
 	}
 
+	// Close the message channel when listener is done
+	close(messageChannel)
 }
 
-// checkIfChatIDExists checks if the chatID exists in the chatIDs slice if it does send using bot
+// processMessage processes each new message and checks if it belongs to a chat in chatIDs
+func processMessage(update *client.UpdateNewMessage, chatIDs []int64, bot *tgbotapi.BotAPI, userID int64) {
+	newMessage := update.Message
+	// Check if the message has text content
+	if messageText, ok := newMessage.Content.(*client.MessageText); ok {
+		fmt.Printf("New message text received: %s\n", messageText.Text.Text)
+		checkIfChatIDExists(chatIDs, newMessage.ChatId, bot, userID)
+	} else {
+		fmt.Println("Received new message but it does not contain text.")
+	}
+}
+
+// checkIfChatIDExists checks if the chatID exists in the chatIDs slice and sends a message if it does
 func checkIfChatIDExists(chatIDs []int64, chatID int64, bot *tgbotapi.BotAPI, userID int64) {
 	for _, id := range chatIDs {
 		if id == chatID {
-			bot.Send(tgbotapi.NewMessage(userID, "interested chat found"))
+			bot.Send(tgbotapi.NewMessage(userID, "Interested chat found"))
 			return
 		}
 	}
