@@ -14,7 +14,7 @@ func NewBot() *tgbotapi.BotAPI {
 		log.Fatal(err)
 	}
 
-	wh, _ := tgbotapi.NewWebhook("https://e850-196-190-60-154.ngrok-free.app/webhook")
+	wh, _ := tgbotapi.NewWebhook("https://f2f4-196-190-62-133.ngrok-free.app/webhook")
 
 	_, err = bot.Request(wh)
 	if err != nil {
