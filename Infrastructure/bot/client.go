@@ -1,12 +1,15 @@
 package bot
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	config "kesbekes/Config"
 	"log"
 	"path/filepath"
+	"time"
 
+	"github.com/go-redis/redis/v8"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/zelenin/go-tdlib/client"
 )
@@ -14,6 +17,7 @@ import (
 type TdLib struct {
 	TdLibClient *client.Client
 	Bot         *tgbotapi.BotAPI
+	RedisClient *redis.Client
 }
 
 func NewTdLib(bot *tgbotapi.BotAPI) *TdLib {
@@ -69,9 +73,12 @@ func NewTdLib(bot *tgbotapi.BotAPI) *TdLib {
 
 	log.Printf("Me: %s %s ", me.FirstName, me.LastName)
 
+	redis := config.CreateRedisClient()
+
 	return &TdLib{
 		TdLibClient: tdlibClient,
 		Bot:         bot,
+		RedisClient: redis,
 	}
 }
 
@@ -105,23 +112,19 @@ func (t *TdLib) Listen(chatIDs []int64, userID int64) {
 	// Channel for passing new messages to workers
 	messageChannel := make(chan *client.UpdateNewMessage, 100) // Buffer size as needed
 
-	// Start a fixed number of worker goroutines
-	workerCount := 5 // Adjust this value based on the expected load
+	// Start a fixed number of worker goroutines for checking preferences
+	workerCount := 5 // Adjust this value based on expected load
 	for i := 0; i < workerCount; i++ {
-		go func() {
-			for update := range messageChannel {
-				processMessage(update, chatIDs, t.Bot, userID)
-			}
-		}()
+		go t.CheckIsPreference(userID) // Worker continuously checks Redis for messages
 	}
 
-	// Process updates and send new messages to the channel
+	// Start goroutine to process updates and enqueue messages to Redis
 	fmt.Println("New message listener activated")
 	for update := range listener.Updates {
 		switch u := update.(type) {
 		case *client.UpdateNewMessage:
-			// Send the new message to the messageChannel for processing by a worker
-			messageChannel <- u
+			// Call processMessage here to filter and enqueue relevant messages
+			go t.processMessage(u, chatIDs)
 		default:
 			fmt.Printf("Unknown update type received: %v\n", u)
 		}
@@ -132,23 +135,74 @@ func (t *TdLib) Listen(chatIDs []int64, userID int64) {
 }
 
 // processMessage processes each new message and checks if it belongs to a chat in chatIDs
-func processMessage(update *client.UpdateNewMessage, chatIDs []int64, bot *tgbotapi.BotAPI, userID int64) {
+func (t *TdLib) processMessage(update *client.UpdateNewMessage, chatIDs []int64) {
 	newMessage := update.Message
 	// Check if the message has text content
 	if messageText, ok := newMessage.Content.(*client.MessageText); ok {
 		fmt.Printf("New message text received: %s\n", messageText.Text.Text)
-		checkIfChatIDExists(chatIDs, newMessage.ChatId, bot, userID)
+
+		if ChatIDExists(chatIDs, newMessage.ChatId) {
+			// Serialize and enqueue the message for processing
+			EnqueueMessage(newMessage, t.RedisClient)
+		}
 	} else {
 		fmt.Println("Received new message but it does not contain text.")
 	}
 }
 
 // checkIfChatIDExists checks if the chatID exists in the chatIDs slice and sends a message if it does
-func checkIfChatIDExists(chatIDs []int64, chatID int64, bot *tgbotapi.BotAPI, userID int64) {
+func ChatIDExists(chatIDs []int64, chatID int64) bool {
 	for _, id := range chatIDs {
 		if id == chatID {
-			bot.Send(tgbotapi.NewMessage(userID, "Interested chat found"))
-			return
+			return true
+		}
+	}
+	return false
+}
+
+func ProcessTxt(txt string) bool {
+	return txt == "dog"
+}
+
+func EnqueueMessage(newMessage *client.Message, redisClient *redis.Client) {
+	ctx := context.Background()
+	// Serialize the message into JSON
+	messageBytes, err := json.Marshal(newMessage)
+	if err != nil {
+		log.Printf("Error serializing message: %v", err)
+		return
+	}
+	// Push to Redis list
+	_, err = redisClient.LPush(ctx, "messageQueue", messageBytes).Result()
+	if err != nil {
+		log.Printf("Error enqueuing message: %s", err)
+	}
+}
+
+func (t *TdLib) CheckIsPreference(userID int64) {
+	ctx := context.Background()
+	for {
+		// Pop a message from the Redis queue
+		messageJSON, err := t.RedisClient.BRPop(ctx, 0*time.Second, "messageQueue").Result()
+		if err != nil {
+			log.Printf("Error retrieving message from queue: %s", err)
+			continue
+		}
+
+		// Deserialize the message JSON
+		var newMessage client.Message
+		err = json.Unmarshal([]byte(messageJSON[1]), &newMessage)
+		if err != nil {
+			log.Printf("Error deserializing message: %s", err)
+			continue
+		}
+
+		// Process the message text to check if it matches preference
+		if messageText, ok := newMessage.Content.(*client.MessageText); ok {
+			if ProcessTxt(messageText.Text.Text) {
+				msg := fmt.Sprintf("Dog found in chat ID: %d", newMessage.ChatId)
+				t.Bot.Send(tgbotapi.NewMessage(userID, msg))
+			}
 		}
 	}
 }
