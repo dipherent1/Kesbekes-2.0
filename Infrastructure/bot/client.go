@@ -216,7 +216,14 @@ func (t *TdLib) CheckIsPreference(userID int64, prefernces []string) {
 				continue
 			}
 			if isPreferred {
-				msg := fmt.Sprintf("Interested topic in chat ID: %d", newMessage.ChatId)
+				chat, err := t.TdLibClient.GetChat(&client.GetChatRequest{
+					ChatId: newMessage.ChatId,
+				})
+				if err != nil {
+					log.Printf("Error getting chat info: %s", err)
+					continue
+				}
+				msg := fmt.Sprintf("Interested topic in chat: %s", chat.Title)
 				t.Bot.Send(tgbotapi.NewMessage(userID, msg))
 			}
 		}
