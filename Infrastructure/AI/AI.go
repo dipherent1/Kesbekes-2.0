@@ -37,7 +37,7 @@ func (ai *AI) IsPreferred(txt string, preferences []string) (bool, error) {
 	fmt.Println("this is the model ", ai.AIModel)
 
 	preferencesList := strings.Join(preferences, ", ")
-	query := "Does the text '" + txt + "' match any of these preferences: " + preferencesList
+	query := "Does the text '" + txt + "' match any of these preferences: " + preferencesList + "reply with 'yes' or 'no' only."
 
 	ctx := context.Background()
 	resp, err := ai.AIModel.GenerateContent(ctx, genai.Text(query))
@@ -48,17 +48,18 @@ func (ai *AI) IsPreferred(txt string, preferences []string) (bool, error) {
 	// Print the response for debugging
 	printResponse(resp)
 
-	//// Check each candidate's content for keywords indicating preference
-	// for _, cand := range resp.Candidates {
-	// 	if cand.Content != nil {
-	// 		for _, part := range cand.Content.Parts {
-	// 			lowerPart := strings.ToLower(part)
-	// 			if strings.Contains(lowerPart, "yes") || strings.Contains(lowerPart, "matches") {
-	// 				return true, nil
-	// 			}
-	// 		}
-	// 	}
-	// }
+	// Check each candidate's content for keywords indicating preference
+	for _, cand := range resp.Candidates {
+		if cand.Content != nil {
+			for _, part := range cand.Content.Parts {
+				// Convert part to a string
+				lowerPart := strings.ToLower(fmt.Sprint(part))
+				if strings.Contains(lowerPart, "yes") || strings.Contains(lowerPart, "matches") {
+					return true, nil
+				}
+			}
+		}
+	}
 
 	// If no match was found
 	return false, nil
