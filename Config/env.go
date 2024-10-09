@@ -20,6 +20,8 @@ var (
 
 	PhoneNumber string
 	BotToken    string
+
+	GeminAPIKey string
 )
 
 func EnvInit() {
@@ -74,6 +76,11 @@ func EnvInit() {
 	BotToken = os.Getenv("BOT_TOKEN")
 	if BotToken == "" {
 		fmt.Println("BOT_TOKEN is not set. Using default bot token")
+	}
+
+	GeminAPIKey = os.Getenv("GEMINI_API_KEY")
+	if GeminAPIKey == "" {
+		fmt.Println("GEMIN_API_KEY is not set. Using default Gemin API key")
 	}
 
 }

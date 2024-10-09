@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	config "kesbekes/Config"
+	ai "kesbekes/Infrastructure/AI"
+	repositories "kesbekes/Repositories"
 	"log"
 	"path/filepath"
 	"time"
@@ -18,9 +20,11 @@ type TdLib struct {
 	TdLibClient *client.Client
 	Bot         *tgbotapi.BotAPI
 	RedisClient *redis.Client
+	BotRepo     *repositories.TelegramRepository
+	ai          *ai.AI
 }
 
-func NewTdLib(bot *tgbotapi.BotAPI) *TdLib {
+func NewTdLib(bot *tgbotapi.BotAPI, botRepo *repositories.TelegramRepository, ai *ai.AI) *TdLib {
 	// Initialize authorizer
 
 	// Configure TDLib
@@ -79,6 +83,8 @@ func NewTdLib(bot *tgbotapi.BotAPI) *TdLib {
 		TdLibClient: tdlibClient,
 		Bot:         bot,
 		RedisClient: redis,
+		BotRepo:     botRepo,
+		ai:          ai,
 	}
 }
 
@@ -106,6 +112,11 @@ func (t *TdLib) Get10Updates() {
 
 func (t *TdLib) Listen(chatIDs []int64, userID int64) {
 	// Create a listener
+	prefernces, err := t.BotRepo.GetUserPreferences(userID)
+	if err != nil {
+		log.Fatalf("Error getting user preferences: %s", err)
+	}
+
 	listener := t.TdLibClient.GetListener()
 	defer listener.Close()
 
@@ -115,7 +126,7 @@ func (t *TdLib) Listen(chatIDs []int64, userID int64) {
 	// Start a fixed number of worker goroutines for checking preferences
 	workerCount := 5 // Adjust this value based on expected load
 	for i := 0; i < workerCount; i++ {
-		go t.CheckIsPreference(userID) // Worker continuously checks Redis for messages
+		go t.CheckIsPreference(userID, prefernces) // Worker continuously checks Redis for messages
 	}
 
 	// Start goroutine to process updates and enqueue messages to Redis
@@ -160,8 +171,8 @@ func ChatIDExists(chatIDs []int64, chatID int64) bool {
 	return false
 }
 
-func ProcessTxt(txt string) bool {
-	return txt == "dog"
+func (t *TdLib) ProcessTxt(txt string, prefernces []string) (bool, error) {
+	return t.ai.IsPreferred(txt, prefernces)
 }
 
 func EnqueueMessage(newMessage *client.Message, redisClient *redis.Client) {
@@ -179,11 +190,11 @@ func EnqueueMessage(newMessage *client.Message, redisClient *redis.Client) {
 	}
 }
 
-func (t *TdLib) CheckIsPreference(userID int64) {
-	ctx := context.Background()
+func (t *TdLib) CheckIsPreference(userID int64, prefernces []string) {
+	// get preference
 	for {
 		// Pop a message from the Redis queue
-		messageJSON, err := t.RedisClient.BRPop(ctx, 0*time.Second, "messageQueue").Result()
+		messageJSON, err := t.RedisClient.BRPop(context.Background(), 0*time.Second, "messageQueue").Result()
 		if err != nil {
 			log.Printf("Error retrieving message from queue: %s", err)
 			continue
@@ -199,8 +210,13 @@ func (t *TdLib) CheckIsPreference(userID int64) {
 
 		// Process the message text to check if it matches preference
 		if messageText, ok := newMessage.Content.(*client.MessageText); ok {
-			if ProcessTxt(messageText.Text.Text) {
-				msg := fmt.Sprintf("Dog found in chat ID: %d", newMessage.ChatId)
+			isPreferred, err := t.ProcessTxt(messageText.Text.Text, prefernces)
+			if err != nil {
+				log.Printf("Error processing text: %s", err)
+				continue
+			}
+			if isPreferred {
+				msg := fmt.Sprintf("Interested topic in chat ID: %d", newMessage.ChatId)
 				t.Bot.Send(tgbotapi.NewMessage(userID, msg))
 			}
 		}

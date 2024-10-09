@@ -9,9 +9,9 @@ import (
 
 func BotRouter() {
 	Bot = config.NewBot()
-	TgClient := bot.NewTdLib(Bot)
 
 	BotRepo := repositories.NewTelegramRepository(DB)
+	TgClient := bot.NewTdLib(Bot, BotRepo, AI)
 	botController := controllers.NewBotController(TgClient, Bot, BotRepo)
 	botRouter := Router.Group("/bot")
 
