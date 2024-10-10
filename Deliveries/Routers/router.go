@@ -1,6 +1,7 @@
 package routers
 
 import (
+	"fmt"
 	config "kesbekes/Config"
 	ai "kesbekes/Infrastructure/AI"
 
@@ -17,6 +18,7 @@ var AI *ai.AI
 func Setuprouter() *gin.Engine {
 	db := config.ConnectDB()
 	DB = db
+	fmt.Println("Connected to database")
 	AI = ai.NewAI()
 	// Migrate the schema
 	Migrate()
