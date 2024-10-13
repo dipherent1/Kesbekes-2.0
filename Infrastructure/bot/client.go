@@ -178,6 +178,7 @@ func (t *TdLib) ProcessTxt(txt string, prefernces []string) (bool, error) {
 func EnqueueMessage(newMessage *client.Message, redisClient *redis.Client) {
 	ctx := context.Background()
 	// Serialize the message into JSON
+	fmt.Println("new message", newMessage)
 	messageBytes, err := json.Marshal(newMessage)
 	if err != nil {
 		log.Printf("Error serializing message: %v", err)
