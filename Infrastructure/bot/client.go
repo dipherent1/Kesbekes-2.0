@@ -26,7 +26,7 @@ type TdLib struct {
 
 func NewTdLib(bot *tgbotapi.BotAPI, botRepo *repositories.TelegramRepository, ai *ai.AI) *TdLib {
 	// Initialize authorizer
-
+	//hehe
 	// Configure TDLib
 	authorizer := client.ClientAuthorizer()
 	go client.CliInteractor(authorizer)
