@@ -91,10 +91,6 @@ To contribute to Kesbekes 2.0:
    ```
 5. Submit a pull request for review.
 
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
-
 ## Contact
 
 For questions, please open an issue on GitHub or contact the repository maintainer directly.

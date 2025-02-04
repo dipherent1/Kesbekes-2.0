@@ -26,7 +26,6 @@ type TdLib struct {
 
 func NewTdLib(bot *tgbotapi.BotAPI, botRepo *repositories.TelegramRepository, ai *ai.AI) *TdLib {
 	// Initialize authorizer
-	//hehe
 	// Configure TDLib
 	authorizer := client.ClientAuthorizer()
 	go client.CliInteractor(authorizer)
@@ -120,7 +119,7 @@ func (t *TdLib) Listen(chatIDs []int64, userID int64) {
 	listener := t.TdLibClient.GetListener()
 	defer listener.Close()
 
-	// Channel for passing new messages to workers
+	// Channel for passing new messages to workers if we are not going to use Redis
 	messageChannel := make(chan *client.UpdateNewMessage, 100) // Buffer size as needed
 
 	// Start a fixed number of worker goroutines for checking preferences
@@ -152,6 +151,7 @@ func (t *TdLib) processMessage(update *client.UpdateNewMessage, chatIDs []int64)
 	if messageText, ok := newMessage.Content.(*client.MessageText); ok {
 		fmt.Printf("New message text received: %s\n", messageText.Text.Text)
 
+		// Check if the chat ID is in the list of chat IDs
 		if ChatIDExists(chatIDs, newMessage.ChatId) {
 			// Serialize and enqueue the message for processing
 			EnqueueMessage(newMessage, t.RedisClient)
