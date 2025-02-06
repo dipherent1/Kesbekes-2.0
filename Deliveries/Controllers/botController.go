@@ -37,13 +37,13 @@ var isDeleteChat = false
 
 func (b *BotController) Webhook(c *gin.Context) {
 	var update tgbotapi.Update
-
 	// Parse the incoming request body (JSON) into the Update struct
 	if err := c.ShouldBindJSON(&update); err != nil {
 		log.Printf("Error decoding incoming update: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
+	fmt.Printf("the command is ", update.Message.Command())
 
 	// Handle the forwarded message
 	if update.Message != nil && update.Message.ForwardFromChat != nil {
@@ -84,8 +84,13 @@ func (b *BotController) Webhook(c *gin.Context) {
 		if err != nil {
 			log.Printf("Error saving user: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-			//send using telegram
-			b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Error saving user"))
+			// Check if the error is because the user already exists
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "User already exists"))
+			} else {
+				b.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Error saving user"))
+			}
+			fmt.Println("00000000000000000000000000000000000000")
 			return
 		}
 
